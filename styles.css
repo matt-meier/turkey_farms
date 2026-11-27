@@ -504,11 +504,12 @@ body {
   position: fixed;
   z-index: 999;
   pointer-events: none;
-  max-width: 270px;
+  max-width: min(275px, calc(100vw - 20px));
   background: rgba(43, 45, 48, 0.96);
   color: #FAF8F5;
-  padding: 9px 12px;
-  border-radius: 4px;
+  padding: 9px 30px 9px 12px;
+  border-radius: 5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
   font-family: var(--font-body);
   font-size: 11.5px;
   line-height: 1.45;
@@ -517,6 +518,51 @@ body {
 .tooltip strong {
   color: #F4B36C;
   font-weight: 600;
+}
+
+.tooltip-body {
+  margin: 0;
+}
+
+.tooltip-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #CFC7BB;
+  font-size: 17px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  padding: 0;
+}
+
+.tooltip-close:hover,
+.tooltip-close:focus-visible {
+  color: #FAF8F5;
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .tooltip {
+    pointer-events: auto;
+    cursor: pointer;
+    padding: 10px 36px 10px 13px;
+  }
+
+  .tooltip-close {
+    width: 30px;
+    height: 30px;
+    font-size: 20px;
+  }
 }
 
 /* Responsive Mobile Layout */

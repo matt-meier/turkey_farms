@@ -64,25 +64,48 @@
     }
   }
 
+  function isTouchInput() {
+    return window.matchMedia && window.matchMedia("(hover: none), (pointer: coarse)").matches;
+  }
+
   function showTooltip(html, evt) {
-    dom.tooltip.innerHTML = html;
+    dom.tooltip.innerHTML =
+      "<button type=\"button\" class=\"tooltip-close\" aria-label=\"Close tooltip\">&times;</button>" +
+      "<div class=\"tooltip-body\">" + html + "</div>";
     dom.tooltip.hidden = false;
     positionTooltip(evt);
   }
 
   function positionTooltip(evt) {
-    if (dom.tooltip.hidden) return;
+    if (dom.tooltip.hidden || !evt) return;
     const pad = 14;
+    const margin = 10;
     const rect = dom.tooltip.getBoundingClientRect();
-    let x = evt.clientX + pad;
-    let y = evt.clientY - rect.height - 10;
-    if (x + rect.width > window.innerWidth - 10) {
-      x = evt.clientX - rect.width - pad;
+    const clientX = typeof evt.clientX === "number" ? evt.clientX : window.innerWidth / 2;
+    const clientY = typeof evt.clientY === "number" ? evt.clientY : window.innerHeight / 2;
+
+    let x = clientX + pad;
+    let y = clientY - rect.height - 10;
+
+    if (x + rect.width > window.innerWidth - margin) {
+      x = clientX - rect.width - pad;
     }
-    if (x < 10) x = 10;
-    if (y < 10) y = evt.clientY + pad;
-    dom.tooltip.style.left = x + "px";
-    dom.tooltip.style.top = y + "px";
+    if (x + rect.width > window.innerWidth - margin) {
+      x = window.innerWidth - rect.width - margin;
+    }
+    if (x < margin) {
+      x = margin;
+    }
+
+    if (y < margin) {
+      y = clientY + pad;
+    }
+    if (y + rect.height > window.innerHeight - margin) {
+      y = Math.max(margin, window.innerHeight - rect.height - margin);
+    }
+
+    dom.tooltip.style.left = Math.round(x) + "px";
+    dom.tooltip.style.top = Math.round(y) + "px";
   }
 
   function hideTooltip() {
@@ -114,6 +137,7 @@
   }
 
   function setYear(yr) {
+    hideTooltip();
     state.year = yr;
     dom.yearBtns.forEach(function (btn) {
       const active = Number(btn.dataset.year) === yr;
@@ -651,18 +675,22 @@
       const labelText = b.label + ": " + b.zip_pct.toFixed(1) + "%";
       const inside = barW > 132;
 
+      const barTipHtml =
+        "<strong>" + b.label + " (" + yr + ")</strong><br/>" +
+        fmtInt(b.zips) + " ZIP codes (" + b.zip_pct.toFixed(1) + "% of all valid ZIPs).<br/>" +
+        "Accounts for " + fmtInt(b.ops) + " operations (" + b.ops_pct.toFixed(1) + "% of valid ZIP total).";
+
       const row = svg.append("g")
         .attr("class", "dist-bar-row")
         .on("mouseenter", function (evt) {
-          showTooltip(
-            "<strong>" + b.label + " (" + yr + ")</strong><br/>" +
-            fmtInt(b.zips) + " ZIP codes (" + b.zip_pct.toFixed(1) + "% of all valid ZIPs).<br/>" +
-            "Accounts for " + fmtInt(b.ops) + " operations (" + b.ops_pct.toFixed(1) + "% of valid ZIP total).",
-            evt
-          );
+          showTooltip(barTipHtml, evt);
         })
         .on("mousemove", positionTooltip)
-        .on("mouseleave", hideTooltip);
+        .on("mouseleave", hideTooltip)
+        .on("click", function (evt) {
+          evt.stopPropagation();
+          showTooltip(barTipHtml, evt);
+        });
 
       row.append("rect")
         .attr("x", 0)
@@ -856,6 +884,7 @@
     });
 
     dom.inspectorClose.addEventListener("click", function () {
+      hideTooltip();
       state.selectedStateAbbr = null;
       renderMap();
       renderDumbbell();
@@ -863,6 +892,41 @@
     });
 
     dom.zipSearch.addEventListener("input", renderInspector);
+
+    // Dismiss tooltips via close button, tapping tooltip on touch devices, tapping outside, scrolling, or Escape
+    dom.tooltip.addEventListener("click", function (evt) {
+      if (evt.target && evt.target.closest && evt.target.closest(".tooltip-close")) {
+        evt.stopPropagation();
+        hideTooltip();
+        return;
+      }
+      if (isTouchInput()) {
+        evt.stopPropagation();
+        hideTooltip();
+      }
+    });
+
+    document.addEventListener("pointerdown", function (evt) {
+      if (dom.tooltip.hidden) return;
+      const target = evt.target;
+      if (target && target.closest && target.closest("#tooltip")) {
+        return;
+      }
+      const onInteractiveMark = target && target.closest && target.closest(
+        ".state-path, .zip-dot, .dumbbell-row, .dist-bar-row, .trend-point-group"
+      );
+      if (!onInteractiveMark) {
+        hideTooltip();
+      }
+    });
+
+    window.addEventListener("scroll", hideTooltip, { passive: true });
+    window.addEventListener("resize", hideTooltip, { passive: true });
+    document.addEventListener("keydown", function (evt) {
+      if (evt.key === "Escape") {
+        hideTooltip();
+      }
+    });
 
     try {
       const results = await Promise.all([
